@@ -20,11 +20,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "clog.h"
 #include <assert.h>
 #include <stdarg.h>
+#include <pthread.h>
 #include <sys/time.h>
 
 static struct CLOG_config configs[MAX_CONFIG];
 static short int n_configs;
 static int n_size;
+static pthread_mutex_t mtx;
 
 static const char *basename(const char *filename) {
   const char *p = strrchr(filename, '/');
@@ -56,6 +58,7 @@ void CLOG_log(const char *level, const char *filename, int line, const char *fmt
   strftime(now_s, sizeof(now_s), "%F %T", gmtime(&now.tv_sec));
   snprintf(now_s + strlen(now_s), 50 - strlen(now_s), ".%.06ld", now.tv_usec);
 
+  pthread_mutex_lock(&mtx);
   for (int i=0; i < n_configs; i++) {
     if (configs[i].levels & to_lvl(level)) {
       va_list args;
@@ -67,6 +70,7 @@ void CLOG_log(const char *level, const char *filename, int line, const char *fmt
       va_end(args);
     }
   }
+  pthread_mutex_unlock(&mtx);
 }
 
 void CLOG_init() {
